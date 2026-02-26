@@ -1,8 +1,137 @@
-# Template - Python
+# Azure OpenAI Realtime Chatbot
 
-This repository is a small, intentionally minimal Python template you can use as the starting point for new repos.
+A web application for real-time voice and text chat with Azure OpenAI GPT models, featuring RBAC-based authentication.
 
-It’s designed to be a quick workflow to get started while keeping the day-0 developer experience solid (devcontainer support, modern dependency management, and a place for agent instructions).
+## Architecture
+
+```
+┌─────────────┐     WebSocket     ┌─────────────┐     WebSocket     ┌──────────────────┐
+│   Browser   │ ←──────────────→  │   Python    │ ←──────────────→  │  Azure OpenAI    │
+│  (React)    │                   │   Backend   │                   │  Realtime API    │
+└─────────────┘                   └─────────────┘                   └──────────────────┘
+                                        │
+                                        │ DefaultAzureCredential
+                                        │ (uses az login / Managed Identity)
+                                        ↓
+                                  ┌─────────────┐
+                                  │  Azure AD   │
+                                  └─────────────┘
+```
+
+## Prerequisites
+
+1. **Azure CLI** - Logged in with `az login`
+2. **Azure OpenAI Resource** - With a realtime model deployment (e.g., `gpt-4o-realtime-preview`)
+3. **RBAC Role Assignment** - User must have `Cognitive Services OpenAI User` role on the Azure OpenAI resource
+
+### Assigning the RBAC Role
+
+```bash
+# Get your user object ID
+USER_ID=$(az ad signed-in-user show --query id -o tsv)
+
+# Get your Azure OpenAI resource ID (replace with your values)
+RESOURCE_GROUP="your-resource-group"
+OPENAI_RESOURCE="your-openai-resource"
+RESOURCE_ID=$(az cognitiveservices account show \
+    --resource-group $RESOURCE_GROUP \
+    --name $OPENAI_RESOURCE \
+    --query id -o tsv)
+
+# Assign the Cognitive Services OpenAI User role
+az role assignment create \
+    --assignee $USER_ID \
+    --role "Cognitive Services OpenAI User" \
+    --scope $RESOURCE_ID
+```
+
+## Quick Start
+
+### 1. Install dependencies
+
+```bash
+# Backend (Python)
+uv sync
+
+# Frontend (Node.js)
+cd web && npm install
+```
+
+### 2. Configure environment
+
+```bash
+# Backend (.env in repo root)
+AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com
+AZURE_OPENAI_DEPLOYMENT=gpt-4o-realtime-preview
+
+# Frontend (web/.env.local) - optional for MSAL auth
+VITE_AZURE_CLIENT_ID=your-app-client-id
+VITE_AZURE_TENANT_ID=your-tenant-id
+```
+
+### 3. Start the servers
+
+```bash
+# Terminal 1: Backend (port 8000)
+uv run python src/server.py
+
+# Terminal 2: Frontend (port 5173)
+cd web && npm run dev
+```
+
+### 4. Open the app
+
+Navigate to http://localhost:5173
+
+## Development
+
+### Backend
+
+The Python backend (`src/server.py`) provides:
+- `/api/health` - Health check endpoint
+- `/api/realtime` - WebSocket proxy to Azure OpenAI Realtime API
+
+Authentication uses `DefaultAzureCredential`, which automatically picks up:
+- `az login` credentials (local development)
+- Managed Identity (Azure deployments)
+- Environment variables, VS Code credentials, etc.
+
+### Frontend
+
+The React frontend (`web/`) includes:
+- MSAL authentication (optional, for user identification)
+- WebSocket client for realtime communication
+- Voice input/output components (coming soon)
+
+## Project Structure
+
+```
+├── src/
+│   ├── server.py      # Backend server with WebSocket proxy
+│   └── load_env.py    # Environment variable loading
+├── web/
+│   └── src/
+│       ├── services/
+│       │   ├── authService.ts      # MSAL authentication
+│       │   └── realtimeService.ts  # WebSocket client
+│       └── components/             # React components
+├── pyproject.toml     # Python dependencies
+└── .env               # Backend configuration
+```
+
+## Troubleshooting
+
+### "Credential not valid" error
+- Ensure you're logged in with `az login`
+- Verify you have the `Cognitive Services OpenAI User` role assigned
+
+### WebSocket connection fails
+- Check the backend is running on port 8000
+- Verify `AZURE_OPENAI_ENDPOINT` and `AZURE_OPENAI_DEPLOYMENT` are set correctly
+
+---
+
+## Original Template Documentation
 
 ## What this template includes
 

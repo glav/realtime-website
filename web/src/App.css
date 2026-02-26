@@ -5,6 +5,71 @@
   text-align: center;
 }
 
+.chat-container {
+  min-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #333;
+}
+
+.chat-header h1 {
+  margin: 0;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.chat-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+}
+
+.error-message {
+  background: rgba(244, 67, 54, 0.1);
+  border: 1px solid #f44336;
+  border-radius: 8px;
+  padding: 1.5rem;
+  max-width: 500px;
+}
+
+.error-message p {
+  margin: 0.5rem 0;
+}
+
+.suggestion {
+  color: #888;
+  font-size: 0.875rem;
+}
+
+.suggestion code {
+  background: #333;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+
 .logo {
   height: 6em;
   padding: 1.5em;

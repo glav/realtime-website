@@ -2,11 +2,9 @@
  * App Layout Component
  * 
  * Main application layout with header, navigation, and content area.
- * Includes authentication UI in the header.
  */
 
 import { type ReactNode } from 'react';
-import { LoginButton } from '../Auth/LoginButton';
 import './AppLayout.css';
 
 export interface AppLayoutProps {
@@ -21,9 +19,6 @@ export function AppLayout({ children, title = 'Azure OpenAI Chatbot' }: AppLayou
     <div className="app-layout">
       <header className="app-header">
         <h1 className="app-title">{title}</h1>
-        <nav className="app-nav">
-          <LoginButton />
-        </nav>
       </header>
       
       <main className="app-main">
