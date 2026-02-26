@@ -1,5 +1,11 @@
 require('@testing-library/jest-dom');
 
+// Set up Vite environment variables for Jest tests via globalThis.__VITE_ENV__
+globalThis.__VITE_ENV__ = {
+  VITE_AZURE_CLIENT_ID: 'test-client-id',
+  VITE_AZURE_TENANT_ID: 'test-tenant-id',
+};
+
 // Mock Web Audio API
 global.AudioContext = jest.fn().mockImplementation(() => ({
   createMediaStreamSource: jest.fn(),
