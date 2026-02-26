@@ -32,10 +32,26 @@ Initial setup and implementation of Azure OpenAI GPT Realtime Chatbot SPA with R
 * `web/e2e/` - End-to-end test directory
 * `web/__mocks__/fileMock.js` - File mock for Jest
 * `web/src/__tests__/setup.test.ts` - Initial test file to verify Jest configuration
+* `web/src/services/__tests__/authService.test.ts` - Comprehensive auth service tests (30 tests covering 8 critical scenarios + 5 edge cases) - TDD Phase 1 RED
+* `web/src/services/authService.ts` - MSAL.js authentication service implementation with login, logout, token acquisition, refresh, and error handling - TDD Phase 2 GREEN
+* `web/src/utils/constants.ts` - Auth configuration constants (AZURE_OPENAI_SCOPE, TOKEN_REFRESH_BUFFER_MS, authConfig)
+* `web/.env.example` - Environment variable template for Azure AD and OpenAI configuration
+* `web/src/contexts/AuthContext.tsx` - React context for auth state management with login, logout, and token acquisition
+* `web/src/hooks/useAuth.ts` - Custom hook for consuming auth functionality
+* `web/src/utils/msalConfig.ts` - MSAL PublicClientApplication configuration and initialization
+* `web/src/components/Auth/LoginButton.tsx` - Login/logout button component with loading and error states
+* `web/src/components/Auth/LoginButton.css` - LoginButton styles
+* `web/src/components/Auth/__tests__/LoginButton.test.tsx` - LoginButton component tests (14 tests)
+* `web/src/components/Layout/AppLayout.tsx` - Main layout component with header and auth UI
+* `web/src/components/Layout/AppLayout.css` - AppLayout styles
 
 ### Modified
 
 * `web/tsconfig.app.json` - Updated target to ES2020, added resolveJsonModule and isolatedModules options
+* `web/package.json` - Added @azure/msal-browser, @azure/msal-react, and identity-obj-proxy dependencies
+* `web/src/main.tsx` - Wrapped app with MsalProvider and AuthProvider
+* `web/src/App.tsx` - Replaced demo UI with authenticated/unauthenticated templates
+* `web/jest.config.js` - Added JSX and esModuleInterop transform configuration
 
 ### Removed
 

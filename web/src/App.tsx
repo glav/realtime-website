@@ -1,33 +1,87 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
+import { AuthenticatedTemplate, UnauthenticatedTemplate } from '@azure/msal-react'
+import { useAuth } from './hooks/useAuth'
 import './App.css'
 
-function App() {
-  const [count, setCount] = useState(0)
+function LoginPage() {
+  const { login, error, clearError, isLoading } = useAuth();
+
+  const handleLogin = async () => {
+    try {
+      await login();
+    } catch {
+      // Error is handled by useAuth
+    }
+  };
 
   return (
+    <div className="login-container">
+      <h1>Azure OpenAI GPT Realtime Chatbot</h1>
+      <p>Sign in with your Azure AD account to start chatting</p>
+      
+      {error && (
+        <div className="error-message">
+          <p>{error.message}</p>
+          {error.suggestion && <p className="suggestion">{error.suggestion}</p>}
+          <button onClick={clearError}>Dismiss</button>
+        </div>
+      )}
+      
+      <button 
+        onClick={handleLogin} 
+        disabled={isLoading}
+        className="login-button"
+      >
+        {isLoading ? 'Signing in...' : 'Sign In'}
+      </button>
+    </div>
+  );
+}
+
+function ChatInterface() {
+  const { user, logout, isLoading } = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch {
+      // Error is handled by useAuth
+    }
+  };
+
+  return (
+    <div className="chat-container">
+      <header className="chat-header">
+        <h1>Azure OpenAI Chatbot</h1>
+        <div className="user-info">
+          <span>Welcome, {user?.name || user?.username || 'User'}</span>
+          <button 
+            onClick={handleLogout} 
+            disabled={isLoading}
+            className="logout-button"
+          >
+            Sign Out
+          </button>
+        </div>
+      </header>
+      
+      <main className="chat-main">
+        <p>Chat interface coming soon...</p>
+        <p>Text and voice interactions with Azure OpenAI GPT Realtime model</p>
+      </main>
+    </div>
+  );
+}
+
+function App() {
+  return (
     <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
+      <UnauthenticatedTemplate>
+        <LoginPage />
+      </UnauthenticatedTemplate>
+      
+      <AuthenticatedTemplate>
+        <ChatInterface />
+      </AuthenticatedTemplate>
     </>
   )
 }
