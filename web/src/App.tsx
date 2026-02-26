@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { apiConfig } from './utils/constants';
+import { ChatContainer } from './components/Chat';
 import './App.css'
 
 interface BackendHealth {
@@ -22,7 +23,7 @@ function StatusIndicator({ status, health }: { status: ConnectionStatus; health:
   const getStatusText = () => {
     if (status === 'checking') return 'Checking backend...';
     if (status === 'error') return 'Backend unreachable';
-    if (health?.credential_valid) return 'Connected & Authenticated';
+    if (health?.credential_valid) return 'Backend ready';
     return `Auth error: ${health?.credential_error || 'Unknown'}`;
   };
 
@@ -34,9 +35,10 @@ function StatusIndicator({ status, health }: { status: ConnectionStatus; health:
   );
 }
 
-function ChatInterface() {
+function App() {
   const [backendStatus, setBackendStatus] = useState<ConnectionStatus>('checking');
   const [health, setHealth] = useState<BackendHealth | null>(null);
+  const [chatError, setChatError] = useState<string | null>(null);
 
   useEffect(() => {
     const checkHealth = async () => {
@@ -54,45 +56,57 @@ function ChatInterface() {
     checkHealth();
   }, []);
 
+  const handleChatError = useCallback((error: string) => {
+    setChatError(error);
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => setChatError(null), 5000);
+  }, []);
+
+  const isBackendReady = backendStatus === 'connected' && health?.credential_valid;
+
   return (
-    <div className="chat-container">
-      <header className="chat-header">
-        <h1>Azure OpenAI Chatbot</h1>
+    <div className="app">
+      <header className="app-header">
+        <h1>Azure OpenAI Realtime Chat</h1>
         <StatusIndicator status={backendStatus} health={health} />
       </header>
-      
-      <main className="chat-main">
+
+      {chatError && (
+        <div className="chat-error">
+          {chatError}
+          <button onClick={() => setChatError(null)}>✕</button>
+        </div>
+      )}
+
+      <main className="app-main">
         {backendStatus === 'checking' && (
-          <p>Connecting to backend...</p>
+          <div className="loading-state">
+            <p>Connecting to backend...</p>
+          </div>
         )}
-        
+
         {backendStatus === 'error' && (
-          <div className="error-message">
+          <div className="error-state">
             <p>Cannot reach the backend server.</p>
-            <p className="suggestion">Make sure the backend is running: <code>uv run python src/server.py</code></p>
+            <p className="hint">Make sure the backend is running:</p>
+            <code>uv run python src/server.py</code>
           </div>
         )}
-        
+
         {backendStatus === 'connected' && !health?.credential_valid && (
-          <div className="error-message">
+          <div className="error-state">
             <p>Backend is running but Azure authentication failed.</p>
-            <p className="suggestion">Run <code>az login</code> to authenticate with Azure.</p>
+            <p className="hint">Run the following command to authenticate:</p>
+            <code>az login</code>
           </div>
         )}
-        
-        {backendStatus === 'connected' && health?.credential_valid && (
-          <>
-            <p>Chat interface coming soon...</p>
-            <p>Text and voice interactions with Azure OpenAI GPT Realtime model</p>
-          </>
+
+        {isBackendReady && (
+          <ChatContainer onError={handleChatError} />
         )}
       </main>
     </div>
   );
-}
-
-function App() {
-  return <ChatInterface />;
 }
 
 export default App

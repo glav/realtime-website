@@ -23,13 +23,11 @@ export class RealtimeService {
   private backendUrl: string;
 
   constructor(backendUrl: string = '') {
-    // Default to same host in production, localhost:8000 in dev
+    // Use the provided URL or construct from current location
+    // With Vite proxy, we can use the same host with ws/wss protocol
     if (!backendUrl) {
-      const isLocalhost = window.location.hostname === 'localhost' || 
-                          window.location.hostname === '127.0.0.1';
-      this.backendUrl = isLocalhost 
-        ? 'ws://localhost:8000' 
-        : `wss://${window.location.host}`;
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      this.backendUrl = `${protocol}//${window.location.host}`;
     } else {
       this.backendUrl = backendUrl;
     }

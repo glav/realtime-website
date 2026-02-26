@@ -23,11 +23,7 @@ const getEnvVar = (key: string): string => {
 
 // Backend API configuration
 export const apiConfig = {
-  // Backend URL - defaults to localhost:8000 in development
-  backendUrl: getEnvVar('VITE_BACKEND_URL') || (
-    typeof window !== 'undefined' && 
-    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-      ? 'http://localhost:8000'
-      : ''
-  ),
+  // In development with Vite proxy, use relative URLs (empty string)
+  // In production, set VITE_BACKEND_URL to the actual backend URL
+  backendUrl: getEnvVar('VITE_BACKEND_URL') || '',
 };

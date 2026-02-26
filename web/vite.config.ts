@@ -10,6 +10,14 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     server: {
       host: '0.0.0.0',
+      // Proxy API requests to the backend server
+      proxy: {
+        '/api': {
+          target: 'http://localhost:8000',
+          changeOrigin: true,
+          ws: true, // Enable WebSocket proxying
+        },
+      },
     },
     optimizeDeps: {
       // Pre-bundle React dependencies
