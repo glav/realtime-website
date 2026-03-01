@@ -7,6 +7,7 @@
                 "files.insertFinalNewline": true,
                 "files.trimTrailingWhitespace": true,
                 "editor.tabSize": 2,
+                "python.terminal.activateEnvironment": false,
                 "json.schemas": [
                     {
                         "fileMatch": [
