@@ -1,15 +1,24 @@
-# Azure AD Setup Guide for Realtime Website
+# Azure Authentication Setup Guide for Realtime Website
 
-This guide walks you through configuring Azure Active Directory (Azure AD) authentication for the realtime-website application, which uses MSAL.js for authentication and Azure OpenAI for AI capabilities.
+This guide walks you through configuring authentication for the realtime-website application. Authentication is handled entirely on the **backend** using [`DefaultAzureCredential`](https://docs.microsoft.com/en-us/python/api/azure-identity/azure.identity.defaultazurecredential) from the Azure Identity SDK. No Azure AD App Registration or MSAL.js frontend setup is required.
+
+## How Authentication Works
+
+The Python backend (`src/server.py`) uses `DefaultAzureCredential` to authenticate with Azure OpenAI. The frontend React app connects to the backend WebSocket proxy at `/api/realtime` — the browser never communicates directly with Azure OpenAI.
+
+`DefaultAzureCredential` automatically tries these credential sources in order:
+1. **Environment variables** (`AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_TENANT_ID`)
+2. **Azure CLI** (`az login`) — recommended for local development
+3. **Visual Studio Code credentials**
+4. **Managed Identity** — used when deployed to Azure (App Service, Container Apps, AKS, etc.)
 
 ## Table of Contents
 
 - [1. Prerequisites](#1-prerequisites)
-- [2. Manual Setup (Azure Portal)](#2-manual-setup-azure-portal)
-- [3. Automated Setup (Azure CLI)](#3-automated-setup-azure-cli)
-- [4. Configure the Application](#4-configure-the-application)
-- [5. RBAC Configuration](#5-rbac-configuration)
-- [6. Troubleshooting](#6-troubleshooting)
+- [2. Local Development Setup](#2-local-development-setup)
+- [3. Production Setup (Managed Identity)](#3-production-setup-managed-identity)
+- [4. RBAC Configuration](#4-rbac-configuration)
+- [5. Troubleshooting](#5-troubleshooting)
 
 ---
 
@@ -17,10 +26,9 @@ This guide walks you through configuring Azure Active Directory (Azure AD) authe
 
 Before you begin, ensure you have:
 
-- **Azure Subscription**: An active Azure subscription with permissions to create resources
+- **Azure Subscription**: An active Azure subscription
 - **Azure CLI**: Installed and authenticated ([Install Azure CLI](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli))
-- **Admin Permissions**: Sufficient permissions to create App Registrations in Azure AD (typically requires "Application Administrator" or "Global Administrator" role)
-- **Azure OpenAI Resource**: An existing Azure OpenAI resource with a deployment configured
+- **Azure OpenAI Resource**: An existing Azure OpenAI resource with a realtime model deployment configured
 
 ### Verify Azure CLI Installation
 
@@ -37,202 +45,98 @@ az account show
 
 ---
 
-## 2. Manual Setup (Azure Portal)
+## 2. Local Development Setup
 
-Follow these steps to manually create and configure the Azure AD App Registration.
+### Step 1: Login with Azure CLI
 
-### Step 1: Create an App Registration
+```bash
+az login
+```
 
-1. Navigate to the [Azure Portal](https://portal.azure.com)
-2. Go to **Azure Active Directory** → **App registrations**
-3. Click **+ New registration**
-4. Configure the registration:
-   - **Name**: `realtime-website` (or your preferred name)
-   - **Supported account types**: Select based on your requirements:
-     - *Single tenant*: "Accounts in this organizational directory only"
-     - *Multi-tenant*: "Accounts in any organizational directory"
-   - **Redirect URI**: Leave blank for now (we'll configure this in the next step)
-5. Click **Register**
+This is all that's needed for authentication in local development. `DefaultAzureCredential` will automatically pick up your `az login` credentials.
 
-### Step 2: Configure as a Single Page Application (SPA)
+### Step 2: Configure Environment Variables
 
-1. In your newly created App Registration, go to **Authentication**
-2. Click **+ Add a platform**
-3. Select **Single-page application**
-4. Configure the redirect URIs:
-   - **Development**: `http://localhost:5173`
-   - **Production**: `https://your-production-domain.com` (add your actual production URL)
-5. Under **Implicit grant and hybrid flows**:
-   - Leave both checkboxes **unchecked** (we use PKCE, not implicit flow)
-6. Click **Configure**
+Create a `.env` file in the repository root with your Azure OpenAI resource details:
 
-> **Note**: This application uses the Authorization Code Flow with PKCE (Proof Key for Code Exchange), which is the recommended flow for SPAs. No client secret is required.
+```env
+# Azure OpenAI endpoint (required)
+AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com
 
-### Step 3: Configure API Permissions
+# Azure OpenAI model deployment name (required)
+AZURE_OPENAI_DEPLOYMENT=gpt-4o-realtime-preview
+```
 
-1. In your App Registration, go to **API permissions**
-2. Click **+ Add a permission**
-3. Select **APIs my organization uses**
-4. Search for and select **Azure Cognitive Services**
-5. Select **Delegated permissions**
-6. Check **user_impersonation**
-7. Click **Add permissions**
-8. Click **Grant admin consent for [Your Organization]** if you have admin rights
+Replace the placeholder values:
+- `https://your-resource.openai.azure.com` → Your Azure OpenAI resource endpoint
+- `gpt-4o-realtime-preview` → Your realtime model deployment name
 
-The application uses the scope `https://cognitiveservices.azure.com/.default` for Azure OpenAI access.
+### Step 3: Start the Backend and Frontend
 
-> **Important**: In enterprise tenants, admin consent is typically **required** before regular users can sign in. If you skip this step, users will see an "Admin approval required" error. See [Troubleshooting: Admin Consent Required](#aadsts65001-admin-consent-required) for details.
+```bash
+# Start the Python backend (from repo root)
+uv run python src/server.py
 
-### Step 4: Note Your Application Details
+# In a separate terminal, start the Vite frontend
+cd web && npm run dev
+```
 
-1. Go to **Overview** in your App Registration
-2. Copy and save:
-   - **Application (client) ID**: This is your `VITE_AZURE_CLIENT_ID`
-   - **Directory (tenant) ID**: This is your `VITE_AZURE_TENANT_ID`
+Navigate to `http://localhost:5173` and the app will connect to the backend proxy.
 
 ---
 
-## 3. Automated Setup (Azure CLI)
+## 3. Production Setup (Managed Identity)
 
-Use the provided script or run the commands manually to automate the App Registration setup.
+When deploying to Azure, use a [Managed Identity](https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/overview) for the hosting resource (App Service, Container Apps, AKS, etc.). No credentials need to be stored — `DefaultAzureCredential` picks up the managed identity automatically.
 
-### Option A: Use the Setup Script
+### Enable Managed Identity
 
-Run the automated setup script:
+#### Azure App Service
+
+```bash
+# Enable system-assigned managed identity
+az webapp identity assign \
+    --name "your-app-name" \
+    --resource-group "your-resource-group"
+```
+
+#### Azure Container Apps
+
+```bash
+# Enable system-assigned managed identity
+az containerapp identity assign \
+    --name "your-container-app" \
+    --resource-group "your-resource-group" \
+    --system-assigned
+```
+
+After enabling Managed Identity, [assign the required RBAC role](#4-rbac-configuration) to the identity's principal ID.
+
+---
+
+## 4. RBAC Configuration
+
+The identity used to run the backend (your `az login` user for local dev, or the managed identity in production) must have the **Cognitive Services OpenAI User** role on the Azure OpenAI resource.
+
+### Use the Setup Script
+
+Run the provided RBAC setup script:
 
 ```bash
 # From the repository root
 ./scripts/setup-azure-ad.sh
 ```
 
-The script will:
-1. Prompt for your app name and redirect URIs
-2. Create the App Registration
-3. Configure SPA redirect URIs
-4. Add API permissions
-5. Output the CLIENT_ID and TENANT_ID
+The script will guide you through assigning the required role to a user, group, or managed identity.
 
-### Option B: Manual CLI Commands
+### Manual Role Assignment
 
-If you prefer to run commands manually:
+#### Assign Role to a User (local development)
 
 ```bash
-# Set variables
-APP_NAME="realtime-website"
-DEV_REDIRECT_URI="http://localhost:5173"
-PROD_REDIRECT_URI="https://your-production-domain.com"
-
-# Create the App Registration
-APP_ID=$(az ad app create \
-    --display-name "$APP_NAME" \
-    --sign-in-audience "AzureADMyOrg" \
-    --query appId \
-    --output tsv)
-
-echo "Created App Registration with Client ID: $APP_ID"
-
-# Get Tenant ID
-TENANT_ID=$(az account show --query tenantId --output tsv)
-
-echo "Tenant ID: $TENANT_ID"
-
-# Configure SPA redirect URIs
-az ad app update \
-    --id "$APP_ID" \
-    --set spa.redirectUris="[\"$DEV_REDIRECT_URI\",\"$PROD_REDIRECT_URI\"]"
-
-echo "Configured SPA redirect URIs"
-
-# Add Azure Cognitive Services API permission (user_impersonation)
-# The Azure Cognitive Services API ID is: 7a72c8f3-0000-0000-0000-000000000000
-# user_impersonation permission ID: a]
-az ad app permission add \
-    --id "$APP_ID" \
-    --api "7f432311-97d9-4a25-94ab-5d80e38c4a01" \
-    --api-permissions "4914d7f7-8b41-4e45-b19a-5f8c6d8db0e5=Scope"
-
-echo "Added Azure Cognitive Services API permission"
-
-# Output configuration
-echo ""
-echo "============================================"
-echo "Azure AD App Registration Complete!"
-echo "============================================"
-echo ""
-echo "Add these values to your .env.local file:"
-echo ""
-echo "VITE_AZURE_CLIENT_ID=$APP_ID"
-echo "VITE_AZURE_TENANT_ID=$TENANT_ID"
-echo ""
-```
-
----
-
-## 4. Configure the Application
-
-### Step 1: Create Environment File
-
-```bash
-# From the web directory
-cd web
-
-# Copy the example file
-cp .env.example .env.local
-```
-
-### Step 2: Fill in the Values
-
-Edit `web/.env.local` with your Azure AD configuration:
-
-```env
-# Azure AD Configuration
-# Copy this file to .env.local and fill in your values
-
-# Azure AD Application (client) ID from app registration
-VITE_AZURE_CLIENT_ID=your-azure-ad-client-id
-
-# Azure AD Directory (tenant) ID
-VITE_AZURE_TENANT_ID=your-azure-ad-tenant-id
-
-# Azure OpenAI Resource endpoint (optional - used by OpenAI service)
-VITE_AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com
-
-# Azure OpenAI Deployment name (optional)
-VITE_AZURE_OPENAI_DEPLOYMENT=your-deployment-name
-```
-
-Replace the placeholder values:
-- `your-azure-ad-client-id` → Your Application (client) ID from Step 4 of Manual Setup
-- `your-azure-ad-tenant-id` → Your Directory (tenant) ID from Step 4 of Manual Setup
-- `https://your-resource.openai.azure.com` → Your Azure OpenAI endpoint
-- `your-deployment-name` → Your Azure OpenAI model deployment name
-
-### Step 3: Verify Configuration
-
-Start the development server and verify authentication works:
-
-```bash
-npm run dev
-```
-
-Navigate to `http://localhost:5173` and attempt to sign in.
-
----
-
-## 5. RBAC Configuration
-
-For users to access Azure OpenAI through the application, they must have the **Cognitive Services OpenAI User** role assigned.
-
-### Assign Role to Individual Users
-
-```bash
-# Set variables
 RESOURCE_GROUP="your-resource-group"
 OPENAI_RESOURCE_NAME="your-openai-resource"
 USER_EMAIL="user@example.com"
-
-# Get the user's Object ID
-USER_OBJECT_ID=$(az ad user show --id "$USER_EMAIL" --query id --output tsv)
 
 # Get the Azure OpenAI resource ID
 OPENAI_RESOURCE_ID=$(az cognitiveservices account show \
@@ -241,26 +145,21 @@ OPENAI_RESOURCE_ID=$(az cognitiveservices account show \
     --query id \
     --output tsv)
 
-# Assign the Cognitive Services OpenAI User role
+# Assign role
 az role assignment create \
     --role "Cognitive Services OpenAI User" \
-    --assignee-object-id "$USER_OBJECT_ID" \
-    --assignee-principal-type User \
+    --assignee "$USER_EMAIL" \
     --scope "$OPENAI_RESOURCE_ID"
 
 echo "Role assigned to $USER_EMAIL"
 ```
 
-### Assign Role to an Azure AD Group
+#### Assign Role to a Managed Identity (production)
 
 ```bash
-# Set variables
 RESOURCE_GROUP="your-resource-group"
 OPENAI_RESOURCE_NAME="your-openai-resource"
-GROUP_NAME="OpenAI-Users"
-
-# Get the group's Object ID
-GROUP_OBJECT_ID=$(az ad group show --group "$GROUP_NAME" --query id --output tsv)
+MANAGED_IDENTITY_PRINCIPAL_ID="<principal-id-from-identity-assign-output>"
 
 # Get the Azure OpenAI resource ID
 OPENAI_RESOURCE_ID=$(az cognitiveservices account show \
@@ -269,17 +168,17 @@ OPENAI_RESOURCE_ID=$(az cognitiveservices account show \
     --query id \
     --output tsv)
 
-# Assign the Cognitive Services OpenAI User role to the group
+# Assign role
 az role assignment create \
     --role "Cognitive Services OpenAI User" \
-    --assignee-object-id "$GROUP_OBJECT_ID" \
-    --assignee-principal-type Group \
+    --assignee-object-id "$MANAGED_IDENTITY_PRINCIPAL_ID" \
+    --assignee-principal-type ServicePrincipal \
     --scope "$OPENAI_RESOURCE_ID"
 
-echo "Role assigned to group $GROUP_NAME"
+echo "Role assigned to managed identity"
 ```
 
-### Verify Role Assignments
+#### Verify Role Assignments
 
 ```bash
 # List role assignments on the Azure OpenAI resource
@@ -290,170 +189,77 @@ az role assignment list \
 
 ---
 
-## 6. Troubleshooting
+## 5. Troubleshooting
 
-### Common Errors and Solutions
+### CredentialUnavailableError or AuthenticationError
 
-#### AADSTS900144: The request body must contain the following parameter: 'client_id'
-
-**Cause**: Environment variables are not set or not being read correctly.
+**Cause**: `DefaultAzureCredential` could not find any valid credentials.
 
 **Solutions**:
-1. Verify `.env.local` exists in the `web/` directory
-2. Ensure the file contains `VITE_AZURE_CLIENT_ID` with a valid value
-3. Restart the development server after modifying environment variables
-4. Check that the variable name starts with `VITE_` (required for Vite to expose it)
+1. Run `az login` and re-authenticate
+2. Verify you're using the correct tenant: `az account show`
+3. Ensure the backend process can reach Azure endpoints (check firewall/proxy settings)
 
 ```bash
-# Verify your .env.local file
-cat web/.env.local | grep VITE_AZURE
+# Re-authenticate
+az login
+
+# Check active account
+az account show
 ```
 
 ---
 
-#### AADSTS700016: Application with identifier 'xxx' was not found
+### 403 Forbidden on Azure OpenAI API Calls
 
-**Cause**: The Client ID is incorrect or the app registration doesn't exist.
-
-**Solutions**:
-1. Verify the `VITE_AZURE_CLIENT_ID` value matches your App Registration
-2. Ensure you're using the correct tenant (check `VITE_AZURE_TENANT_ID`)
-3. Confirm the App Registration exists in Azure Portal
-
-```bash
-# Verify the app exists
-az ad app show --id "your-client-id"
-```
-
----
-
-#### AADSTS50011: The redirect URI specified in the request does not match
-
-**Cause**: The redirect URI used by the app doesn't match any configured in the App Registration.
+**Cause**: The identity does not have the required RBAC role on the Azure OpenAI resource.
 
 **Solutions**:
-1. Go to Azure Portal → App Registration → Authentication
-2. Add the correct redirect URI (e.g., `http://localhost:5173`)
-3. Ensure it's configured as a **Single-page application** platform, not Web
-
-```bash
-# Check configured redirect URIs
-az ad app show --id "your-client-id" --query "spa.redirectUris"
-```
-
----
-
-#### AADSTS65001: Admin Consent Required
-
-**Cause**: The application requires API permissions (e.g., Azure Cognitive Services) that need tenant administrator approval before users can sign in. This is common in enterprise tenants with restricted consent policies.
-
-**What You'll See**: A message stating "Need admin approval" or "AADSTS65001: The user or administrator has not consented to use the application."
-
-**Solutions**:
-
-**Option 1: Sign in with an admin account**
-- On the consent prompt, click **"Have an admin account? Sign in with that account"**
-- Sign in with a Global Administrator or Application Administrator account
-- Approve the permissions for the entire tenant
-
-**Option 2: Grant admin consent via Azure CLI**
-```bash
-# Replace with your Application (client) ID
-az ad app permission admin-consent --id "your-client-id"
-```
-
-**Option 3: Grant admin consent via Azure Portal**
-1. Go to [Azure Portal](https://portal.azure.com)
-2. Navigate to **Azure Active Directory** → **App registrations**
-3. Select your application (e.g., `realtime-website`)
-4. Click **API permissions** in the left menu
-5. Click **Grant admin consent for [your tenant]**
-6. Confirm by clicking **Yes**
-
-> **Note**: Once admin consent is granted, regular users will be able to sign in without seeing this prompt again. The consent applies tenant-wide.
-
----
-
-#### CORS Errors in Browser Console
-
-**Cause**: Redirect URI mismatch or app not configured as SPA.
-
-**Solutions**:
-1. Verify the redirect URI exactly matches (including trailing slashes)
-2. Ensure the platform is set to "Single-page application" not "Web"
-3. Check that you're accessing the app via the exact URL configured (e.g., `http://localhost:5173` not `http://127.0.0.1:5173`)
-
----
-
-#### 403 Forbidden on Azure OpenAI API Calls
-
-**Cause**: User doesn't have the required RBAC role on the Azure OpenAI resource.
-
-**Solutions**:
-1. Assign the **Cognitive Services OpenAI User** role to the user (see [RBAC Configuration](#5-rbac-configuration))
+1. Assign the **Cognitive Services OpenAI User** role (see [RBAC Configuration](#4-rbac-configuration))
 2. Wait a few minutes for role assignment to propagate
-3. Sign out and sign back in to get a new token with updated claims
+3. Re-authenticate (`az login`) to get a new token with updated role claims
 
 ```bash
-# Check existing role assignments
+# Check existing role assignments for your account
 az role assignment list \
-    --assignee "user@example.com" \
-    --scope "/subscriptions/{sub-id}/resourceGroups/{rg}/providers/Microsoft.CognitiveServices/accounts/{resource-name}" \
+    --assignee "$(az account show --query user.name -o tsv)" \
+    --scope "$OPENAI_RESOURCE_ID" \
     --output table
 ```
 
 ---
 
-#### Token Expired or Invalid
+### Backend Health Check Fails
 
-**Cause**: The access token has expired or was revoked.
+Use the health endpoint to diagnose backend credential issues:
 
-**Solutions**:
-1. Sign out and sign back in
-2. Clear browser storage (localStorage and sessionStorage)
-3. Check browser console for MSAL-related errors
+```bash
+curl http://localhost:8000/api/health
+```
+
+A healthy response includes `"credential_valid": true`. If `credential_valid` is `false`, the `credential_error` field explains why.
 
 ---
 
-### Debug Tips
+### Environment Variables Not Loaded
 
-#### Enable MSAL Logging
+**Cause**: The `.env` file is missing or in the wrong location.
 
-In your MSAL configuration, enable logging for debugging:
-
-```typescript
-const msalConfig = {
-  // ... other config
-  system: {
-    loggerOptions: {
-      logLevel: LogLevel.Verbose,
-      loggerCallback: (level, message, containsPii) => {
-        console.log(message);
-      },
-    },
-  },
-};
-```
-
-#### Check Token Claims
-
-Decode your access token at [jwt.ms](https://jwt.ms) to verify:
-- `aud` (audience) matches your resource
-- `scp` (scope) includes required permissions
-- `tid` (tenant ID) is correct
-
-#### Verify API Permissions
+**Solutions**:
+1. Ensure `.env` exists in the repository root (not in `web/` or `src/`)
+2. Verify it contains `AZURE_OPENAI_ENDPOINT` and `AZURE_OPENAI_DEPLOYMENT`
+3. Restart the backend server after modifying the file
 
 ```bash
-# List API permissions for your app
-az ad app show --id "your-client-id" --query "requiredResourceAccess"
+# Check the .env file
+cat .env
 ```
 
 ---
 
 ## Additional Resources
 
-- [MSAL.js Documentation](https://docs.microsoft.com/en-us/azure/active-directory/develop/msal-js-initializing-client-applications)
-- [Azure AD App Registration](https://docs.microsoft.com/en-us/azure/active-directory/develop/quickstart-register-app)
-- [Azure OpenAI Authentication](https://docs.microsoft.com/en-us/azure/cognitive-services/openai/how-to/managed-identity)
-- [PKCE Flow Explained](https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-auth-code-flow)
+- [DefaultAzureCredential documentation](https://docs.microsoft.com/en-us/python/api/azure-identity/azure.identity.defaultazurecredential)
+- [Azure Managed Identities overview](https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/overview)
+- [Azure OpenAI authentication](https://docs.microsoft.com/en-us/azure/cognitive-services/openai/how-to/managed-identity)
+- [Azure RBAC for Cognitive Services](https://docs.microsoft.com/en-us/azure/cognitive-services/openai/how-to/role-based-access-control)
