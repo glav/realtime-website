@@ -124,9 +124,32 @@ export interface ResponseTextDoneEvent {
 
 export interface ResponseAudioDeltaEvent {
   type: 'response.audio.delta';
+  event_id?: string;
   response_id: string;
   item_id: string;
-  delta: string; // Base64-encoded audio chunk
+  output_index?: number;
+  content_index?: number;
+  delta: string; // Base64-encoded PCM16 audio
+}
+
+export interface ResponseAudioTranscriptDeltaEvent {
+  type: 'response.audio_transcript.delta';
+  event_id?: string;
+  response_id: string;
+  item_id: string;
+  output_index?: number;
+  content_index?: number;
+  delta: string; // transcript text chunk
+}
+
+export interface ResponseAudioTranscriptDoneEvent {
+  type: 'response.audio_transcript.done';
+  event_id?: string;
+  response_id: string;
+  item_id: string;
+  output_index?: number;
+  content_index?: number;
+  transcript: string;
 }
 
 export interface ResponseAudioDoneEvent {
@@ -140,6 +163,9 @@ export interface ResponseDoneEvent {
   response: {
     id: string;
     status: 'completed' | 'cancelled' | 'failed';
+    status_details?: {
+      reason?: string;
+    };
   };
 }
 
@@ -160,6 +186,8 @@ export type ServerEvent =
   | ResponseTextDoneEvent
   | ResponseAudioDeltaEvent
   | ResponseAudioDoneEvent
+  | ResponseAudioTranscriptDeltaEvent
+  | ResponseAudioTranscriptDoneEvent
   | ResponseDoneEvent
   | ErrorEvent;
 

@@ -9,6 +9,7 @@ import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { useRealtimeChat } from '../../hooks/useRealtimeChat';
 import { useAudioCapture } from '../../hooks/useAudioCapture';
+import { useAudioPlayback } from '../../hooks/useAudioPlayback';
 import './ChatContainer.css';
 
 interface ChatContainerProps {
@@ -17,6 +18,11 @@ interface ChatContainerProps {
 
 export function ChatContainer({ onError }: ChatContainerProps) {
   const {
+    queueAudio,
+    stop: stopAudio,
+  } = useAudioPlayback();
+
+  const {
     messages,
     connectionState,
     isProcessing,
@@ -24,7 +30,10 @@ export function ChatContainer({ onError }: ChatContainerProps) {
     disconnect,
     sendMessage,
     isConnected,
-  } = useRealtimeChat({ onError });
+  } = useRealtimeChat({
+    onError,
+    onAudioDelta: queueAudio,
+  });
 
   const {
     isRecording,
@@ -40,11 +49,12 @@ export function ChatContainer({ onError }: ChatContainerProps) {
 
   const handleConnect = useCallback(() => {
     if (isConnected) {
+      stopAudio();
       disconnect();
     } else {
       connect();
     }
-  }, [isConnected, connect, disconnect]);
+  }, [isConnected, connect, disconnect, stopAudio]);
 
   const getConnectionStatusColor = () => {
     switch (connectionState) {
