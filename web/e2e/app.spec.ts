@@ -36,6 +36,10 @@ test.describe('App Loading', () => {
     // Verify the main heading is visible
     await expect(page.locator('h1')).toContainText('Azure OpenAI Realtime Chat');
 
+    // Verify the app header is present
+    await expect(page.locator('.app-header')).toBeVisible();
+
+    // Verify the status indicator is shown
     // Verify the status indicator is present
     await expect(page.locator('.status-indicator')).toBeVisible();
   });
@@ -55,6 +59,17 @@ test.describe('App Loading', () => {
     expect(errors).toHaveLength(0);
   });
 
+  test('should load chat UI components', async ({ page }) => {
+    await page.goto('/');
+
+    // Check for the app header and main heading
+    await expect(page.locator('.app-header')).toBeVisible();
+    await expect(page.locator('h1')).toContainText('Azure OpenAI Realtime Chat');
+
+    // Verify the status indicator is present
+    await expect(page.locator('.status-indicator')).toBeVisible();
+
+    // Verify the main content area is present
   test('should show backend ready status when health check passes', async ({ page }) => {
     await page.goto('/');
 
