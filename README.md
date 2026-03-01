@@ -1,8 +1,8 @@
 # Azure OpenAI Realtime Chatbot
 
-A web application for real-time voice and text chat with Azure OpenAI GPT models, featuring RBAC-based authentication.
+A web application for real-time text chat with Azure OpenAI GPT models, using RBAC-based authentication.
 
-## Architecture
+## How It Works
 
 ```
 ┌─────────────┐     WebSocket     ┌─────────────┐     WebSocket     ┌──────────────────┐
@@ -11,18 +11,22 @@ A web application for real-time voice and text chat with Azure OpenAI GPT models
 └─────────────┘                   └─────────────┘                   └──────────────────┘
                                         │
                                         │ DefaultAzureCredential
-                                        │ (uses az login / Managed Identity)
+                                        │ (az login / Managed Identity)
                                         ↓
                                   ┌─────────────┐
-                                  │  Azure AD   │
+                                  │  Entra ID   │
                                   └─────────────┘
 ```
+
+The **React frontend** provides a chat UI that connects via WebSocket to the **Python backend**. The backend acts as a secure proxy to the Azure OpenAI Realtime API, handling authentication using `DefaultAzureCredential`.
 
 ## Prerequisites
 
 1. **Azure CLI** - Logged in with `az login`
 2. **Azure OpenAI Resource** - With a realtime model deployment (e.g., `gpt-4o-realtime-preview`)
 3. **RBAC Role Assignment** - User must have `Cognitive Services OpenAI User` role on the Azure OpenAI resource
+4. **uv** - Python dependency manager ([install guide](https://github.com/astral-sh/uv))
+5. **Node.js** - For the frontend (v18+)
 
 ### Assigning the RBAC Role
 
@@ -59,17 +63,25 @@ cd web && npm install
 
 ### 2. Configure environment
 
+Create a `.env` file in the repository root:
+
 ```bash
-# Backend (.env in repo root)
+# .env (in repo root)
 AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com
 AZURE_OPENAI_DEPLOYMENT=gpt-4o-realtime-preview
-
-# Frontend (web/.env.local) - optional for MSAL auth
-VITE_AZURE_CLIENT_ID=your-app-client-id
-VITE_AZURE_TENANT_ID=your-tenant-id
 ```
 
-### 3. Start the servers
+The frontend uses the Vite dev server proxy to communicate with the backend, so no separate frontend configuration is required for development.
+
+### 3. Authenticate with Azure
+
+```bash
+az login
+```
+
+### 4. Start the servers
+
+**Option A: Two terminals**
 
 ```bash
 # Terminal 1: Backend (port 8000)
@@ -79,94 +91,90 @@ uv run python src/server.py
 cd web && npm run dev
 ```
 
-### 4. Open the app
+**Option B: Single terminal (background backend)**
+
+```bash
+uv run python src/server.py &
+cd web && npm run dev
+```
+
+### 5. Open the app
 
 Navigate to http://localhost:5173
 
-## Development
+The UI will show a green "Backend ready" indicator when everything is working. If you see auth errors, ensure you've run `az login` and have the RBAC role assigned.
 
-### Backend
+## Configuration Reference
 
-The Python backend (`src/server.py`) provides:
-- `/api/health` - Health check endpoint
-- `/api/realtime` - WebSocket proxy to Azure OpenAI Realtime API
+| Variable | Location | Description |
+|----------|----------|-------------|
+| `AZURE_OPENAI_ENDPOINT` | `.env` (root) | Your Azure OpenAI resource URL |
+| `AZURE_OPENAI_DEPLOYMENT` | `.env` (root) | The realtime model deployment name |
+| `PORT` | `.env` (root) | Backend port (default: 8000) |
+
+## Backend API
+
+The Python backend (`src/server.py`) exposes:
+
+| Endpoint | Protocol | Description |
+|----------|----------|-------------|
+| `/api/health` | HTTP GET | Health check - returns JSON with connection status and credential validity |
+| `/api/realtime` | WebSocket | Proxy to Azure OpenAI Realtime API - forwards messages bidirectionally |
 
 Authentication uses `DefaultAzureCredential`, which automatically picks up:
 - `az login` credentials (local development)
 - Managed Identity (Azure deployments)
 - Environment variables, VS Code credentials, etc.
 
-### Frontend
+## Frontend
 
-The React frontend (`web/`) includes:
-- MSAL authentication (optional, for user identification)
-- WebSocket client for realtime communication
-- Voice input/output components (coming soon)
+The React frontend (`web/`) provides:
+- Chat interface with message history
+- Real-time WebSocket connection to the backend
+- Connection status indicator
+- Error handling and helpful messages
+
+The Vite dev server proxies `/api/*` requests to `http://localhost:8000`, so the frontend and backend work together seamlessly.
 
 ## Project Structure
 
 ```
 ├── src/
-│   ├── server.py      # Backend server with WebSocket proxy
-│   └── load_env.py    # Environment variable loading
+│   ├── server.py          # Python backend - WebSocket proxy to Azure OpenAI
+│   └── load_env.py        # .env file discovery and loading
 ├── web/
-│   └── src/
-│       ├── services/
-│       │   ├── authService.ts      # MSAL authentication
-│       │   └── realtimeService.ts  # WebSocket client
-│       └── components/             # React components
-├── pyproject.toml     # Python dependencies
-└── .env               # Backend configuration
+│   ├── src/
+│   │   ├── App.tsx        # Main React component
+│   │   ├── services/
+│   │   │   └── realtimeService.ts  # WebSocket client
+│   │   └── components/
+│   │       └── Chat/      # Chat UI components
+│   ├── vite.config.ts     # Vite config with API proxy
+│   └── package.json       # Frontend dependencies
+├── pyproject.toml         # Python dependencies (managed by uv)
+├── .env                   # Backend configuration (gitignored)
+└── README.md
 ```
 
 ## Troubleshooting
 
 ### "Credential not valid" error
-- Ensure you're logged in with `az login`
-- Verify you have the `Cognitive Services OpenAI User` role assigned
+- Run `az login` to authenticate
+- Verify you have the `Cognitive Services OpenAI User` role assigned to your Azure user
+
+### "Backend unreachable" in the UI
+- Ensure the backend is running: `uv run python src/server.py`
+- Check the backend console for errors
 
 ### WebSocket connection fails
-- Check the backend is running on port 8000
-- Verify `AZURE_OPENAI_ENDPOINT` and `AZURE_OPENAI_DEPLOYMENT` are set correctly
+- Verify `AZURE_OPENAI_ENDPOINT` and `AZURE_OPENAI_DEPLOYMENT` are set correctly in `.env`
+- Check the backend logs for detailed error messages
 
 ---
 
-## Original Template Documentation
+## Development Tools
 
-## What this template includes
-
-- Python 3.12 devcontainer setup
-- `uv` for dependency management (`pyproject.toml` + `uv.lock`)
-- A tiny runnable entrypoint (`src/app.py`) that loads environment variables from `.env` via `python-dotenv`
-- `AGENTS.md` for coding-agent guidance
-
-## Using this repo as a template
-
-Typical workflow:
-
-1. Create a new repository from this template (GitHub: “Use this template”).
-2. Update project metadata in `pyproject.toml` (name/description).
-3. Replace the sample app code under `src/` with your real project.
-4. Update `AGENTS.md` and this README to reflect the new repo’s purpose.
-
-## Setup
-
-This repo uses `uv`.
-
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-uv sync
-```
-
-## Run
-
-```bash
-uv run python src/app.py
-```
-
-## Linting and formatting
-
-This template includes `ruff`.
+### Linting and Formatting (Python)
 
 ```bash
 uv sync --group dev
@@ -174,63 +182,27 @@ uv run ruff check .
 uv run ruff format .
 ```
 
-## Environment variables
-
-- Copy `.env-sample` to `.env` and fill in values as needed.
-- `.env` is gitignored.
+### Frontend Testing
 
 ```bash
-cp .env-sample .env
+cd web
+npm run test           # Unit tests
+npm run test:e2e       # Playwright E2E tests
+npm run lint           # ESLint
 ```
 
-## Copilot / AI Assisted workflow
+---
 
-This template includes an `.agent/` directory containing reusable prompt “commands” and standards you can use with GitHub Copilot (and other coding agents).
+## AI-Assisted Workflow
 
-- `.agent/commands/`: ready-to-run prompts for common tasks, for example:
-	- `setup/`: repo bootstrap tasks (e.g. creating `AGENTS.md`)
-	- `project/`: planning prompts (e.g. sprint planning)
-	- `docs/`: documentation prompts (e.g. creating ADRs)
-- `.agent/standards/`: templates and standards for consistent artifacts (ADRs, feature specs, task plans)
-- `.agent/instructions/`: “apply-to” instructions that guide how agents write certain file types (e.g. Bash and Bicep)
+This repository includes GitHub Copilot integration with reusable prompt commands in `.agent/`:
 
-If you base a new repository on this template, treat `.agent/` as a starting library: keep what helps your team, remove what doesn’t, and add org-specific workflows over time.
+- **`.agent/commands/`** - Slash commands for common tasks (e.g., `/setup:agents-md-creation`)
+- **`.agent/standards/`** - Templates for ADRs, feature specs, task plans
+- **`.agent/instructions/`** - Coding guidelines for different file types
 
-## Copilot CLI (devcontainer)
+### Spec-Driven Development (SDD)
 
-The devcontainer includes GitHub Copilot CLI via the official devcontainer feature (`ghcr.io/devcontainers/features/copilot-cli:latest`).
+A structured 9-step workflow for feature development with quality gates. See `.agent/commands/sdd/README.md` for full documentation.
 
-## Spec-Driven Development (SDD) Workflow
-
-This template includes an enhanced **Spec-Driven Development (SDD)** workflow in `.agent/commands/sdd/`. The SDD workflow provides a structured, 9-step process for developing features with built-in quality gates and testing integration.
-
-### SDD Workflow Steps
-
-| Step | Prompt File | Purpose |
-|------|-------------|---------|
-| 0 | `sdd.0-initialize.prompt.md` | Initialize environment and verify prerequisites |
-| 1 | `sdd.1-create-feature-spec.prompt.md` | Create feature specification via guided Q&A |
-| 2 | `sdd.2-review-spec.prompt.md` | Review spec for completeness (quality gate) |
-| 3 | `sdd.3-research-feature.prompt.md` | Research implementation approach |
-| 4 | `sdd.4-determine-test-strategy.prompt.md` | Determine TDD vs Code-First approach |
-| 5 | `sdd.5-task-planner-for-feature.prompt.md` | Create implementation plan with test phases |
-| 6 | `sdd.6-review-plan.prompt.md` | Review plan for readiness (quality gate) |
-| 7 | `sdd.7-task-implementer-for-feature.prompt.md` | Execute implementation systematically |
-| 8 | `sdd.8-post-implementation-review.prompt.md` | Final validation before completion |
-
-### How to Use
-
-1. **Initialize**: Run `sdd.0-initialize.prompt.md` to set up the environment
-2. **Start a feature**: Run `sdd.1-create-feature-spec.prompt.md` with your feature idea
-3. **Follow handoffs**: Each step tells you which step to run next
-4. **Don't skip review gates**: Steps 2, 4, 6, and 8 catch issues early
-
-### Key Features
-
-- **Quality gates** at review steps with explicit PASS/FAIL validation
-- **Deterministic test strategy** using a scoring-based decision matrix
-- **Integrated testing** with mandatory test phases in implementation plans
-- **State management** for session continuity across steps
-- **Artifact tracking** in `.agent-tracking/` directory
-
-For full documentation, see `.agent/commands/sdd/README.md`.
+The devcontainer includes GitHub Copilot CLI (`copilot`) and Teambot for AI-assisted workflows.
