@@ -105,8 +105,14 @@ export function useAudioCapture(options: UseAudioCaptureOptions = {}) {
         serviceRef.current.send(toRealtimeMessage(audioEvent));
       };
 
+      // Route through a zero-gain node to keep the processor in the graph
+      // (so onaudioprocess fires) without routing microphone audio to speakers.
+      const silentGain = audioContext.createGain();
+      silentGain.gain.value = 0;
+      silentGain.connect(audioContext.destination);
+
       source.connect(scriptProcessor);
-      scriptProcessor.connect(audioContext.destination);
+      scriptProcessor.connect(silentGain);
 
       setIsRecording(true);
       setHasPermission(true);
