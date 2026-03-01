@@ -169,3 +169,14 @@ No build/deploy pipeline is defined.
 
 - If `.env` isn’t being loaded, verify you are running from the repo root and that `.env` exists.
 - If imports fail, run scripts from the repo root using `python3 src/<script>.py` so `src/` is on `sys.path`.
+## Objective Template
+
+TeamBot provides an objective template for defining development tasks:
+
+**File**: `docs/sdd-objective-template.md`
+
+Copy this template, fill in the sections, then run:
+
+```bash
+teambot run objectives/my-feature.md
+```
