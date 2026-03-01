@@ -156,7 +156,7 @@ export function useRealtimeChat(options: UseRealtimeChatOptions = {}) {
       item: {
         type: 'message',
         role: 'user',
-        content: [{ type: 'text', text }],
+        content: [{ type: 'input_text', text }],
       },
     };
     serviceRef.current.send(toRealtimeMessage(createEvent));

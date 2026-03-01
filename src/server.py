@@ -113,10 +113,13 @@ async def realtime_websocket_handler(request: web.Request) -> web.WebSocketRespo
                     try:
                         async for msg in ws_client:
                             if msg.type == WSMsgType.TEXT:
+                                logger.info(f"Client -> Azure: {msg.data[:200]}...")
                                 await ws_azure.send_str(msg.data)
                             elif msg.type == WSMsgType.BINARY:
+                                logger.info(f"Client -> Azure: [binary {len(msg.data)} bytes]")
                                 await ws_azure.send_bytes(msg.data)
                             elif msg.type == WSMsgType.CLOSE:
+                                logger.info("Client sent CLOSE")
                                 await ws_azure.close()
                                 break
                             elif msg.type == WSMsgType.ERROR:
@@ -130,10 +133,13 @@ async def realtime_websocket_handler(request: web.Request) -> web.WebSocketRespo
                     try:
                         async for msg in ws_azure:
                             if msg.type == WSMsgType.TEXT:
+                                logger.info(f"Azure -> Client: {msg.data[:200]}...")
                                 await ws_client.send_str(msg.data)
                             elif msg.type == WSMsgType.BINARY:
+                                logger.info(f"Azure -> Client: [binary {len(msg.data)} bytes]")
                                 await ws_client.send_bytes(msg.data)
                             elif msg.type == WSMsgType.CLOSE:
+                                logger.info(f"Azure sent CLOSE: code={msg.data}, extra={msg.extra}")
                                 await ws_client.close()
                                 break
                             elif msg.type == WSMsgType.ERROR:

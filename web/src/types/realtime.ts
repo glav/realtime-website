@@ -10,7 +10,7 @@ export type MessageRole = 'user' | 'assistant' | 'system';
 
 // Content types
 export interface TextContent {
-  type: 'text';
+  type: 'input_text';
   text: string;
 }
 
