@@ -15,16 +15,10 @@ test.describe('App Loading', () => {
     await expect(page).toHaveTitle('web');
 
     // Verify the main heading is visible
-    await expect(page.locator('h1')).toContainText('Vite + React');
+    await expect(page.locator('h1')).toContainText('Azure OpenAI Realtime Chat');
 
-    // Verify the button is visible and functional
-    const button = page.locator('button');
-    await expect(button).toBeVisible();
-    await expect(button).toContainText('count is 0');
-
-    // Click the button and verify it updates
-    await button.click();
-    await expect(button).toContainText('count is 1');
+    // Verify the status indicator is present
+    await expect(page.locator('.status-indicator')).toBeVisible();
   });
 
   test('should not have console errors', async ({ page }) => {
@@ -42,15 +36,11 @@ test.describe('App Loading', () => {
     expect(errors).toHaveLength(0);
   });
 
-  test('should load React components', async ({ page }) => {
+  test('should load app layout components', async ({ page }) => {
     await page.goto('/');
 
-    // Check for React logos
-    await expect(page.locator('img[alt="React logo"]')).toBeVisible();
-    await expect(page.locator('img[alt="Vite logo"]')).toBeVisible();
-
-    // Verify links are present
-    await expect(page.locator('a[href*="react.dev"]')).toBeVisible();
-    await expect(page.locator('a[href*="vite.dev"]')).toBeVisible();
+    // Check for the app header and main content areas
+    await expect(page.locator('.app-header')).toBeVisible();
+    await expect(page.locator('.app-main')).toBeVisible();
   });
 });
