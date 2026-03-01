@@ -35,6 +35,9 @@ test.describe('App Loading', () => {
 
     // Verify the main heading is visible
     await expect(page.locator('h1')).toContainText('Azure OpenAI Realtime Chat');
+
+    // Verify the status indicator is present
+    await expect(page.locator('.status-indicator')).toBeVisible();
   });
 
   test('should not have console errors', async ({ page }) => {
@@ -89,5 +92,11 @@ test.describe('App Loading', () => {
     // Verify the UI shows the auth error state
     await expect(page.locator('.status-indicator')).toContainText('Auth error');
     await expect(page.locator('.error-state')).toContainText('Azure authentication failed');
+  test('should load app layout components', async ({ page }) => {
+    await page.goto('/');
+
+    // Check for the app header and main content areas
+    await expect(page.locator('.app-header')).toBeVisible();
+    await expect(page.locator('.app-main')).toBeVisible();
   });
 });

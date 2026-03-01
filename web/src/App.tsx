@@ -23,6 +23,7 @@ function StatusIndicator({ status, health }: { status: ConnectionStatus; health:
   const getStatusText = () => {
     if (status === 'checking') return 'Checking backend...';
     if (status === 'error') return 'Backend unreachable';
+    if (!health?.azure_openai_endpoint || !health?.azure_openai_deployment) return 'Configuration incomplete';
     if (health?.credential_valid) return 'Backend ready';
     return `Auth error: ${health?.credential_error || 'Unknown'}`;
   };
@@ -62,7 +63,11 @@ function App() {
     setTimeout(() => setChatError(null), 5000);
   }, []);
 
-  const isBackendReady = backendStatus === 'connected' && health?.credential_valid;
+  const isConfigured = !!(health?.azure_openai_endpoint && health?.azure_openai_deployment);
+  const isBackendReady =
+    backendStatus === 'connected' &&
+    isConfigured &&
+    health?.credential_valid;
 
   return (
     <div className="app">
@@ -93,7 +98,18 @@ function App() {
           </div>
         )}
 
-        {backendStatus === 'connected' && !health?.credential_valid && (
+        {backendStatus === 'connected' && !isConfigured && (
+          <div className="error-state">
+            <p>Backend is running but Azure OpenAI is not fully configured.</p>
+            <p className="hint">Ensure the following environment variables are set:</p>
+            <ul>
+              {!health?.azure_openai_endpoint && <li><code>AZURE_OPENAI_ENDPOINT</code></li>}
+              {!health?.azure_openai_deployment && <li><code>AZURE_OPENAI_DEPLOYMENT</code></li>}
+            </ul>
+          </div>
+        )}
+
+        {backendStatus === 'connected' && isConfigured && !health?.credential_valid && (
           <div className="error-state">
             <p>Backend is running but Azure authentication failed.</p>
             <p className="hint">Run the following command to authenticate:</p>
