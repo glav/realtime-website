@@ -2,6 +2,8 @@
 
 A web application for real-time text chat with Azure OpenAI GPT models, using RBAC-based authentication.
 
+![React frontend chat interface connected via WebSocket to Python backend, which authenticates to Azure OpenAI Realtime API through Entra ID. The screenshot shows a real-time chat application with message history, user input field, connection status indicator, and responsive design for the web-based chatbot interface.](./docs/realtime-chat-site-screenshot.png)
+
 ## How It Works
 
 ```
