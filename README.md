@@ -22,6 +22,12 @@ A web application for real-time text chat with Azure OpenAI GPT models, using RB
 
 The **React frontend** provides a chat UI that connects via WebSocket to the **Python backend**. The backend acts as a secure proxy to the Azure OpenAI Realtime API, handling authentication using `DefaultAzureCredential`.
 
+## Documentation
+
+- **[Voice Communication Architecture](./docs/voice-communication-architecture.md)** - Detailed sequence diagram and component breakdown for real-time voice interaction
+- **[Azure OpenAI Realtime Chatbot Objective](./docs/azure-openai-realtime-chatbot.md)** - Project goals, requirements, and technical specifications
+- **[Azure AD Setup Guide](./docs/azure-ad-setup.md)** - Authentication and RBAC configuration
+
 ## Prerequisites
 
 1. **Azure CLI** - Logged in with `az login`
